@@ -1,8 +1,15 @@
-export function DailyBars({ daily }: { daily: { day: number; total: number }[] }) {
+export function DailyBars({
+  daily,
+  daysInMonth,
+}: {
+  daily: { day: number; total: number }[]
+  /** Number of days in the displayed month (28-31), so the strip is exactly date-aligned. */
+  daysInMonth: number
+}) {
   if (daily.length === 0) return null
   const max = Math.max(...daily.map((d) => d.total))
   const byDay = new Map(daily.map((d) => [d.day, d.total]))
-  const days = Array.from({ length: 31 }, (_, i) => i + 1)
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
   return (
     <div className="flex h-16 items-end gap-[2px]" aria-hidden>

@@ -45,21 +45,36 @@ export default async function MonthPage({
       <p className="px-1 text-3xl font-semibold">{formatToman(summary.total)} T</p>
       <p className="mb-4 px-1 text-sm text-neutral-500">spent this month</p>
 
-      <DailyBars daily={summary.daily} />
+      <DailyBars daily={summary.daily} daysInMonth={new Date(Date.UTC(year, month, 0)).getUTCDate()} />
 
       <ul className="mt-6 flex flex-col gap-2">
-        {summary.byCategory.map((c) => (
-          <li
-            key={c.categoryId ?? 'none'}
-            className="flex items-center justify-between rounded-xl bg-neutral-900 px-4 py-4"
-          >
-            <span className="flex items-center gap-3">
-              <span className="text-xl">{c.icon}</span>
-              <span>{c.name}</span>
-            </span>
-            <span className="font-medium">{formatToman(c.total)} T</span>
-          </li>
-        ))}
+        {summary.byCategory.map((c) => {
+          const row = (
+            <>
+              <span className="flex items-center gap-3">
+                <span className="text-xl">{c.icon}</span>
+                <span>{c.name}</span>
+              </span>
+              <span className="font-medium">{formatToman(c.total)} T</span>
+            </>
+          )
+          return (
+            <li key={c.categoryId ?? 'none'}>
+              {c.categoryId == null ? (
+                <div className="flex items-center justify-between rounded-xl bg-neutral-900 px-4 py-4">
+                  {row}
+                </div>
+              ) : (
+                <Link
+                  href={`/month/category/${c.categoryId}?y=${year}&m=${month}`}
+                  className="flex items-center justify-between rounded-xl bg-neutral-900 px-4 py-4 active:bg-neutral-800"
+                >
+                  {row}
+                </Link>
+              )}
+            </li>
+          )
+        })}
         {summary.byCategory.length === 0 && (
           <li className="py-16 text-center text-neutral-500">No spending recorded.</li>
         )}

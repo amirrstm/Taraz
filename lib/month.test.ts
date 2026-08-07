@@ -69,3 +69,45 @@ test('includes a transaction at 23:30 Tehran on the last day, bucketed as day 31
 
   expect(summary.daily.find((d) => d.day === 31)?.total).toBe(70000)
 })
+
+// This is the invariant a user checks by eye when they tap a category row:
+// the drill-down list must sum to exactly the total shown for that category.
+// It only holds if the drill-down uses the same Iran-local window as the
+// summary; a mismatched window would silently include/exclude transactions
+// at the month edges and this total would drift from what's displayed.
+test('listByCategory for a month sums to exactly the byCategory total for that month', async () => {
+  const cat = (await q.listCategories()).find((c) => c.name === 'Groceries')!
+
+  await q.insertManual({
+    amount: 30000, direction: 'debit', categoryId: cat.id, note: null,
+    occurredAt: Date.parse('2026-09-05T10:00:00Z'),
+  })
+  await q.insertManual({
+    amount: 45000, direction: 'debit', categoryId: cat.id, note: null,
+    // 2026-09-30T21:00:00Z is 2026-10-01T00:30 Tehran: outside September.
+    occurredAt: Date.parse('2026-09-29T18:00:00Z'),
+  })
+  // Just inside the Iran-local end of September (2026-10-01T00:00 Tehran
+  // == 2026-09-30T20:30:00Z).
+  await q.insertManual({
+    amount: 15000, direction: 'debit', categoryId: cat.id, note: null,
+    occurredAt: Date.parse('2026-09-30T20:00:00Z'),
+  })
+  // Falls in October instead: must not be included.
+  await q.insertManual({
+    amount: 999000, direction: 'debit', categoryId: cat.id, note: null,
+    occurredAt: Date.parse('2026-09-30T21:00:00Z'),
+  })
+
+  const { startMs, endMs } = monthRange(2026, 9)
+  const summary = await q.monthSummary(startMs, endMs)
+  const items = await q.listByCategory(startMs, endMs, cat.id)
+
+  const categoryTotal = summary.byCategory.find((c) => c.categoryId === cat.id)?.total
+  const listedTotal = items
+    .filter((t) => t.direction === 'debit')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  expect(categoryTotal).toBe(90000)
+  expect(listedTotal).toBe(categoryTotal)
+})
