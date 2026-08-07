@@ -33,14 +33,21 @@ Interface language is English; parsed SMS content is Persian.
 | Parse failure | Store as `needs_review` row with raw text | Nothing is ever lost |
 | Timestamp | Parse Jalali date/time from SMS; fall back to receive time | Sample SMS carry both date and time |
 | Dedupe | Hash of raw text seen within a 5-minute window | Kills Shortcut retries, keeps genuine repeats |
-| Hosting | VPS + Docker + SQLite file + Caddy | Vercel/Turso geo-block Iranian IPs; phone often has no VPN |
+| Hosting | Vercel + Turso (libSQL) | Zero ops, instant HTTPS. Reachability from Iran verified by the user, who accepts the residual VPN risk |
+| Missed SMS recovery | Paste SMS screen | The Shortcut fires once and never retries; a manual paste box recovers anything lost to an unreachable server |
 | Categories | ~10 seeded rows in DB, editable later | Renaming must not require a deploy |
 | Money | Integer rial in DB, toman in UI | No floats; toman is how prices are spoken |
 
 ## 4. Architecture
 
-Single Next.js (App Router, TypeScript) application in one Docker container.
-SQLite on a mounted volume. Caddy terminates TLS and reverse-proxies.
+Single Next.js (App Router, TypeScript) application deployed to Vercel. Turso
+(libSQL) holds the data; Vercel terminates TLS and provides the HTTPS endpoint
+the iOS Shortcut requires.
+
+Vercel's filesystem is ephemeral and per-invocation, so no state may be written
+to disk. Every read and write goes through Turso. Local development and the
+test suite point the same libSQL client at a `file:` URL, so tests never touch
+the network.
 
 ```
 iPhone SMS ──iOS Shortcut──► POST /api/sms  (X-API-Key)
@@ -169,10 +176,14 @@ Body:   { "text": "<raw sms body>", "sender": "<optional>" }
 - Always returns 200 once authenticated, including on parse failure. An error
   banner on the phone mid-checkout is worse than a review row.
 - Constant-time comparison for the API key.
-- Rate limit: 60 requests/minute per IP.
+- Rate limit: 60 requests/minute per IP, held in process memory. On Vercel this
+  is per-instance rather than global, which is acceptable — it exists to blunt
+  accidental floods, not to stop a determined attacker, who is already stopped
+  by the API key.
 - Dedupe: reject if the same `body_hash` appears in `sms_log` within 5 minutes;
   respond `duplicate`.
-- Target latency under 20ms — local SQLite, a single insert.
+- Latency: roughly 50-150ms warm, up to about 1.5s on a cold start. The
+  Shortcut runs in the background, so this is invisible in practice.
 
 **iOS Shortcut** — Automation → "When I get a message" from the bank sender →
 Get Contents of URL → POST JSON → run without notification. One automation per
@@ -193,8 +204,14 @@ sorted by spend. Arrows move between months. Tapping a category lists its
 transactions.
 
 **Add** — manual entry for cash purchases: amount, direction, category, note.
-The same sheet component handles editing; long-pressing any row offers Edit and
-Delete.
+It also holds a **Paste SMS** box: pasting a bank message runs it through the
+same parser and creates the same transaction the webhook would have. This is
+the recovery path for any SMS lost while the server was unreachable, and the
+original message is still in the Messages app whenever that happens.
+
+Editing reuses the categorization sheet. A `needs_review` transaction arrives
+with `amount = 0`, so the sheet shows an amount field whenever the amount is
+zero and saves it before applying the category. The sheet also offers Delete.
 
 **PWA** — web manifest with `display: standalone`, apple-touch-icon,
 `viewport-fit=cover`, dark `theme-color`. No offline write support in v1; the
@@ -206,16 +223,25 @@ Middleware guards every route except `/api/sms`, `/login`, and static assets.
 
 ## 9. Operations
 
-- `docker compose up -d` runs the app and Caddy. Caddy issues TLS automatically.
-- SQLite lives on a mounted volume in WAL mode. Drizzle migrations run at
-  container start.
-- Nightly cron takes an `sqlite3 .backup` snapshot, keeps 14 dated copies, and
-  optionally pushes them off-box with rclone.
-- The image is built locally and pushed to a registry, since the npm registry
-  may be unreliable from an Iranian VPS.
+- `git push` triggers a Vercel build and deploy. TLS and the domain are
+  Vercel's responsibility.
+- Migrations are **not** run at request time. `npm run db:migrate` is run
+  deliberately from a developer machine against the Turso database after a
+  schema change.
+- Backups: `turso db dump` on a schedule from a machine you control, keeping 14
+  dated copies. Turso's own point-in-time recovery is a second line of defense,
+  not the first.
 
-Environment variables (`.env` on the server, never committed):
-`SMS_API_KEY`, `APP_PASSWORD_HASH`, `COOKIE_SECRET`, `DATABASE_URL`.
+Environment variables (set in the Vercel project, never committed):
+`SMS_API_KEY`, `APP_PASSWORD_HASH`, `COOKIE_SECRET`, `TURSO_DATABASE_URL`,
+`TURSO_AUTH_TOKEN`.
+
+**Accepted risk:** Vercel and Turso may restrict Iranian traffic or accounts at
+any time. If either becomes unreachable, transactions arriving during the
+outage are lost at capture — the iOS Shortcut fires once and does not retry.
+The Paste SMS screen is the recovery path, since the original messages remain
+in the Messages app. Keeping current `turso db dump` backups is what makes a
+provider-side account closure survivable.
 
 ## 10. Testing
 
