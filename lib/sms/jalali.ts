@@ -1,11 +1,11 @@
-import { toGregorian } from 'jalaali-js'
+import { toGregorian, isValidJalaaliDate } from 'jalaali-js'
 
 /** Iran standard time. No daylight saving since 2022. */
 const TEHRAN_OFFSET_MS = (3 * 60 + 30) * 60 * 1000
 
 /**
  * Converts a Jalali calendar date and Tehran wall-clock time to unix
- * milliseconds. Returns null when any component is out of range.
+ * milliseconds. Returns null when any component is out of range or invalid.
  */
 export function jalaliToUnixMs(
   jy: number,
@@ -21,6 +21,8 @@ export function jalaliToUnixMs(
   if (!Number.isInteger(hh) || hh < 0 || hh > 23) return null
   if (!Number.isInteger(mm) || mm < 0 || mm > 59) return null
   if (!Number.isInteger(ss) || ss < 0 || ss > 59) return null
+
+  if (!isValidJalaaliDate(jy, jm, jd)) return null
 
   const { gy, gm, gd } = toGregorian(jy, jm, jd)
   const utc = Date.UTC(gy, gm - 1, gd, hh, mm, ss)

@@ -29,3 +29,13 @@ test('rejects an out-of-range day', () => {
 test('rejects an out-of-range hour', () => {
   expect(jalaliToUnixMs(1405, 1, 1, 24, 0, 0)).toBeNull()
 })
+
+test('rejects Esfand 30 in non-leap year 1404', () => {
+  // Esfand (month 12) only has 29 days in non-leap years
+  expect(jalaliToUnixMs(1404, 12, 30, 0, 0, 0)).toBeNull()
+})
+
+test('rejects Mehr 31 (only has 30 days)', () => {
+  // Mehr (month 7) only has 30 days
+  expect(jalaliToUnixMs(1405, 7, 31, 0, 0, 0)).toBeNull()
+})
