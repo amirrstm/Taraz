@@ -10,6 +10,7 @@ import {
   setCategory,
   updateTransaction,
 } from '@/lib/db/queries'
+import { ingestSms, type IngestResult } from '@/lib/ingest'
 import type { Direction } from '@/lib/sms/types'
 
 /**
@@ -95,4 +96,10 @@ export async function editAction(
   await updateTransaction(txId, patch)
   revalidateAll()
   return { ok: true }
+}
+
+export async function pasteSmsAction(text: string): Promise<IngestResult> {
+  const status = await ingestSms(text, 'paste', Date.now())
+  revalidateAll()
+  return status
 }

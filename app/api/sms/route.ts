@@ -1,14 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
-import { parse } from '@/lib/sms/parse'
 import { allow } from '@/lib/rate-limit'
-import {
-  hashBody,
-  insertNeedsReview,
-  insertParsed,
-  isDuplicate,
-  logSms,
-} from '@/lib/db/queries'
+import { ingestSms } from '@/lib/ingest'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -51,34 +44,6 @@ export async function POST(req: Request): Promise<Response> {
   }
   const sender = typeof body.sender === 'string' ? body.sender : null
 
-  const bodyHash = hashBody(text)
-  if (await isDuplicate(bodyHash, now)) {
-    await logSms({
-      rawText: text,
-      bodyHash,
-      sender,
-      receivedAt: now,
-      parseOk: false,
-      error: 'duplicate',
-    })
-    return NextResponse.json({ ok: true, status: 'duplicate' })
-  }
-
-  const parsed = parse(text)
-  const logId = await logSms({
-    rawText: text,
-    bodyHash,
-    sender,
-    receivedAt: now,
-    parseOk: parsed !== null,
-    error: parsed === null ? 'unparsed' : null,
-  })
-
-  if (parsed) {
-    await insertParsed(parsed, logId, now)
-    return NextResponse.json({ ok: true, status: 'parsed' })
-  }
-
-  await insertNeedsReview(logId, now)
-  return NextResponse.json({ ok: true, status: 'needs_review' })
+  const status = await ingestSms(text, sender, now)
+  return NextResponse.json({ ok: true, status })
 }
