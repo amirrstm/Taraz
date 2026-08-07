@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { parse } from '@/lib/sms/parse'
 import { allow } from '@/lib/rate-limit'
@@ -14,9 +14,12 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 function keyMatches(provided: string, expected: string): boolean {
-  const a = Buffer.from(provided)
-  const b = Buffer.from(expected)
-  if (a.length !== b.length) return false
+  // Hash both sides to a fixed 32-byte digest before comparing, so the
+  // comparison time never varies with the length of either input — a
+  // length check before timingSafeEqual would leak the configured key's
+  // length via timing.
+  const a = createHash('sha256').update(provided).digest()
+  const b = createHash('sha256').update(expected).digest()
   return timingSafeEqual(a, b)
 }
 
@@ -50,6 +53,14 @@ export async function POST(req: Request): Promise<Response> {
 
   const bodyHash = hashBody(text)
   if (await isDuplicate(bodyHash, now)) {
+    await logSms({
+      rawText: text,
+      bodyHash,
+      sender,
+      receivedAt: now,
+      parseOk: false,
+      error: 'duplicate',
+    })
     return NextResponse.json({ ok: true, status: 'duplicate' })
   }
 

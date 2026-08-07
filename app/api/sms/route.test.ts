@@ -1,8 +1,12 @@
 import { rmSync } from 'node:fs'
+import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, expect, test } from 'vitest'
+import type { LibSQLDatabase } from 'drizzle-orm/libsql'
+import type * as schema from '@/lib/db/schema'
 
 const TEST_DB = './data/test-webhook.db'
 let POST: (req: Request) => Promise<Response>
+let db: LibSQLDatabase<typeof schema>
 
 beforeAll(async () => {
   process.env.TURSO_DATABASE_URL = `file:${TEST_DB}`
@@ -12,10 +16,16 @@ beforeAll(async () => {
   const { migrate } = await import('drizzle-orm/libsql/migrator')
   const { getDb } = await import('@/lib/db/client')
   const { seedCategories } = await import('@/lib/db/seed')
-  await migrate(getDb(), { migrationsFolder: './drizzle' })
-  await seedCategories(getDb())
+  db = getDb()
+  await migrate(db, { migrationsFolder: './drizzle' })
+  await seedCategories(db)
   ;({ POST } = await import('@/app/api/sms/route'))
 })
+
+async function count(table: 'sms_log' | 'transactions'): Promise<number> {
+  const rows = (await db.all(sql.raw(`select count(*) as n from ${table}`))) as { n: number }[]
+  return Number(rows[0].n)
+}
 
 afterAll(() => {
   for (const suffix of ['', '-wal', '-shm']) rmSync(`${TEST_DB}${suffix}`, { force: true })
@@ -60,6 +70,18 @@ test('reports a duplicate on immediate resend', async () => {
   const res = await POST(post({ text: SAMAN, sender: 'SAMAN' }))
   expect(res.status).toBe(200)
   expect(await res.json()).toEqual({ ok: true, status: 'duplicate' })
+})
+
+test('a duplicate still logs exactly one sms_log row and no transaction', async () => {
+  const smsLogBefore = await count('sms_log')
+  const txBefore = await count('transactions')
+
+  const res = await POST(post({ text: SAMAN, sender: 'SAMAN' }))
+
+  expect(res.status).toBe(200)
+  expect(await res.json()).toEqual({ ok: true, status: 'duplicate' })
+  expect(await count('sms_log')).toBe(smsLogBefore + 1)
+  expect(await count('transactions')).toBe(txBefore)
 })
 
 test('stores an unparseable message as needs_review with 200', async () => {
