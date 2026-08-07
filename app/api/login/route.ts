@@ -2,10 +2,18 @@ import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { COOKIE_NAME, SESSION_TTL_MS, signSession } from '@/lib/auth/cookie'
+import { allow } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: Request): Promise<Response> {
+  // Rate-limit before touching bcrypt: at cost 10 a flood of guesses can
+  // still burn CPU even though each guess ultimately fails.
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  if (!allow(`login:${ip}`, Date.now())) {
+    return NextResponse.json({ ok: false }, { status: 429 })
+  }
+
   const hash = process.env.APP_PASSWORD_HASH
   const secret = process.env.COOKIE_SECRET
   if (!hash || !secret) return NextResponse.json({ ok: false }, { status: 500 })
