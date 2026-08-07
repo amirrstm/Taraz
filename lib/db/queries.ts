@@ -106,6 +106,18 @@ export async function listCategories(): Promise<Category[]> {
   return getDb().select().from(categories).orderBy(categories.sortOrder)
 }
 
+/** Existence check for server-action input validation. */
+export async function getCategoryById(categoryId: number): Promise<Category | undefined> {
+  const rows = await getDb().select().from(categories).where(eq(categories.id, categoryId)).limit(1)
+  return rows[0]
+}
+
+/** Existence check for server-action input validation. */
+export async function getTransactionById(txId: number): Promise<Transaction | undefined> {
+  const rows = await getDb().select().from(transactions).where(eq(transactions.id, txId)).limit(1)
+  return rows[0]
+}
+
 export async function setCategory(txId: number, categoryId: number): Promise<void> {
   await getDb()
     .update(transactions)

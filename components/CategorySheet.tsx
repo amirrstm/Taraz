@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { Drawer } from 'vaul'
 import type { Category } from '@/lib/db/schema'
+import { normalize } from '@/lib/sms/normalize'
 import { categorizeAction, deleteAction, editAction } from '@/app/(app)/actions'
 
 type Tx = { id: number; amount: number; status: string }
@@ -12,11 +13,13 @@ export function CategorySheet({
   categories,
   open,
   onOpenChange,
+  onCategorized,
 }: {
   tx: Tx | null
   categories: Category[]
   open: boolean
   onOpenChange: (open: boolean) => void
+  onCategorized?: (txId: number, categoryName: string) => void
 }) {
   const [pending, start] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -34,7 +37,9 @@ export function CategorySheet({
     let rial: number | null = null
 
     if (needsAmount) {
-      const value = Number(toman.replace(/,/g, ''))
+      // Bank SMS digits may be Persian/Arabic-Indic; normalize() converts
+      // them to ASCII and strips thousands separators before parsing.
+      const value = Number(normalize(toman).replace(/,/g, ''))
       if (!Number.isFinite(value) || value <= 0) {
         setError('Enter the amount in toman first.')
         return
@@ -45,8 +50,20 @@ export function CategorySheet({
     setError(null)
     start(async () => {
       try {
-        if (rial !== null) await editAction(tx.id, { amount: rial })
-        await categorizeAction(tx.id, categoryId)
+        if (rial !== null) {
+          const editResult = await editAction(tx.id, { amount: rial })
+          if (!editResult.ok) {
+            setError(editResult.error)
+            return
+          }
+        }
+        const categorizeResult = await categorizeAction(tx.id, categoryId)
+        if (!categorizeResult.ok) {
+          setError(categorizeResult.error)
+          return
+        }
+        const categoryName = categories.find((c) => c.id === categoryId)?.name ?? 'category'
+        onCategorized?.(tx.id, categoryName)
         onOpenChange(false)
       } catch {
         setError('Could not save. Try again.')
@@ -57,7 +74,11 @@ export function CategorySheet({
   function remove() {
     if (!tx) return
     start(async () => {
-      await deleteAction(tx.id)
+      const result = await deleteAction(tx.id)
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
       onOpenChange(false)
     })
   }
