@@ -32,3 +32,11 @@ test('undefined fails', async () => {
 test('garbage fails', async () => {
   expect(await verifySession('nonsense', SECRET, NOW)).toBe(false)
 })
+
+test('an empty secret fails closed instead of throwing, even against a well-formed forged cookie', async () => {
+  await expect(verifySession('v1.9999999999999.deadbeef', '', NOW)).resolves.toBe(false)
+})
+
+test('a well-formed forged cookie fails against a real secret', async () => {
+  await expect(verifySession('v1.9999999999999.deadbeef', SECRET, NOW)).resolves.toBe(false)
+})

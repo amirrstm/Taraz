@@ -26,14 +26,21 @@ export async function verifySession(
   secret: string,
   now: number,
 ): Promise<boolean> {
-  if (!value) return false
+  if (!value || !secret) return false
   const parts = value.split('.')
   if (parts.length !== 3 || parts[0] !== 'v1') return false
 
   const expiresAt = Number(parts[1])
   if (!Number.isSafeInteger(expiresAt) || expiresAt <= now) return false
 
-  const expected = await hmac(`v1.${parts[1]}`, secret)
+  let expected: string
+  try {
+    expected = await hmac(`v1.${parts[1]}`, secret)
+  } catch {
+    // A malformed secret or an unexpected Web Crypto rejection must never
+    // grant access — treat it the same as a signature mismatch.
+    return false
+  }
   if (expected.length !== parts[2].length) return false
 
   let diff = 0
