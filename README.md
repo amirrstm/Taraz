@@ -17,11 +17,11 @@ amount and merchant, and you tap a category from your phone's home screen.
 ## Local development
 
 ```bash
-npm install
+pnpm install
 cp .env.example .env
-npx tsx scripts/hash-password.ts 'your-password'   # paste into APP_PASSWORD_HASH
-npm run db:migrate                                  # creates data/taraz.db, applies schema, seeds categories
-npm run dev
+pnpm exec tsx scripts/hash-password.ts 'your-password'   # paste into APP_PASSWORD_HASH
+pnpm db:migrate                                          # creates data/taraz.db, applies schema, seeds categories
+pnpm dev
 ```
 
 Local development and tests use `TURSO_DATABASE_URL=file:./data/taraz.db`. No
@@ -31,8 +31,8 @@ After changing `lib/db/schema.ts`, regenerate the SQL migration before
 running it:
 
 ```bash
-npm run db:generate   # writes a new file under drizzle/
-npm run db:migrate    # applies it, locally or against Turso
+pnpm db:generate   # writes a new file under drizzle/
+pnpm db:migrate    # applies it, locally or against Turso
 ```
 
 ### Environment variables
@@ -40,7 +40,7 @@ npm run db:migrate    # applies it, locally or against Turso
 | Variable             | Purpose                                   | How to generate                                  |
 | --------------------- | ------------------------------------------ | ------------------------------------------------- |
 | `SMS_API_KEY`         | Shared secret the iOS Shortcut sends as `X-API-Key` | `openssl rand -hex 32` |
-| `APP_PASSWORD_HASH`   | bcrypt hash of your login password        | `npx tsx scripts/hash-password.ts 'your-password'` |
+| `APP_PASSWORD_HASH`   | bcrypt hash of your login password        | `pnpm exec tsx scripts/hash-password.ts 'your-password'` |
 | `COOKIE_SECRET`       | Signs the session cookie                  | `openssl rand -hex 32` |
 | `TURSO_DATABASE_URL`  | Database connection                        | `file:./data/taraz.db` locally, `libsql://...` in production |
 | `TURSO_AUTH_TOKEN`    | Database auth token                        | empty locally; `turso db tokens create taraz` in production |
@@ -79,7 +79,7 @@ by hand from a developer machine. Vercel functions are concurrent and
 short-lived; migrating from inside one would race with itself.
 
 ```bash
-TURSO_DATABASE_URL='libsql://your-db-url' TURSO_AUTH_TOKEN='your-token' npm run db:migrate
+TURSO_DATABASE_URL='libsql://your-db-url' TURSO_AUTH_TOKEN='your-token' pnpm db:migrate
 ```
 
 Expected output: `migrations applied`. This also seeds the default expense
@@ -88,35 +88,35 @@ to run repeatedly) — without this step the app has no categories to tap.
 
 ### 3. Deploy to Vercel
 
-Before deploying, make sure only `package-lock.json` is present at the repo
+Before deploying, make sure only `pnpm-lock.yaml` is present at the repo
 root. Vercel picks its package manager from whichever lockfile it finds; a
-stray `pnpm-lock.yaml` would silently switch the build to pnpm. Delete it if
+stray `package-lock.json` would silently switch the build to npm. Delete it if
 one ever appears.
 
 ```bash
-npx vercel        # link the project, first deploy to preview
+pnpm dlx vercel        # link the project, first deploy to preview
 ```
 
 Generate the secrets, then add them for Production, Preview, and Development:
 
 ```bash
-openssl rand -hex 32                                # → SMS_API_KEY
-openssl rand -hex 32                                # → COOKIE_SECRET
-npx tsx scripts/hash-password.ts '<your password>'  # → APP_PASSWORD_HASH
+openssl rand -hex 32                                     # → SMS_API_KEY
+openssl rand -hex 32                                     # → COOKIE_SECRET
+pnpm exec tsx scripts/hash-password.ts '<your password>' # → APP_PASSWORD_HASH
 
-npx vercel env add SMS_API_KEY production
-npx vercel env add APP_PASSWORD_HASH production
-npx vercel env add COOKIE_SECRET production
-npx vercel env add TURSO_DATABASE_URL production
-npx vercel env add TURSO_AUTH_TOKEN production
-npx vercel --prod
+pnpm dlx vercel env add SMS_API_KEY production
+pnpm dlx vercel env add APP_PASSWORD_HASH production
+pnpm dlx vercel env add COOKIE_SECRET production
+pnpm dlx vercel env add TURSO_DATABASE_URL production
+pnpm dlx vercel env add TURSO_AUTH_TOKEN production
+pnpm dlx vercel --prod
 ```
 
 Expected: a live `https://<project>.vercel.app`. Visiting it redirects to
 `/login`.
 
-After any schema change: `npm run db:generate`, commit the new migration,
-then run `npm run db:migrate` against Turso **before** deploying the code
+After any schema change: `pnpm db:generate`, commit the new migration,
+then run `pnpm db:migrate` against Turso **before** deploying the code
 that depends on it.
 
 ### 4. Verify the deployment
@@ -199,15 +199,15 @@ creating a duplicate (verified in Task 13's dedupe tests).
    expected `parse()` output, or `null` if the message is not a transaction.
 2. Add a template file under `lib/sms/templates/`, modeled on `saman.ts`.
 3. Register it in `lib/sms/templates/index.ts`.
-4. Run `npm test`.
+4. Run `pnpm test`.
 
 No other changes are needed.
 
 ## First-run verification checklist
 
-- [ ] `npm test` — all suites pass
-- [ ] `npx tsc --noEmit` — no type errors
-- [ ] `npm run build` — production build succeeds
+- [ ] `pnpm test` — all suites pass
+- [ ] `pnpm exec tsc --noEmit` — no type errors
+- [ ] `pnpm build` — production build succeeds
 - [ ] Unauthenticated `/inbox` redirects to `/login`
 - [ ] `/api/sms` works without a session cookie
 - [ ] `/api/sms` with a wrong key returns 401
