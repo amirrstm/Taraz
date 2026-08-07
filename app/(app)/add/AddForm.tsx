@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { addManualAction } from '@/app/(app)/actions'
 import type { Category } from '@/lib/db/schema'
-import { normalize } from '@/lib/sms/normalize'
+import { parseTomanInput } from '@/lib/money'
 import type { Direction } from '@/lib/sms/types'
 
 export function AddForm({ categories }: { categories: Category[] }) {
@@ -17,11 +17,8 @@ export function AddForm({ categories }: { categories: Category[] }) {
   const [error, setError] = useState<string | null>(null)
 
   function submit() {
-    // Bank receipts may use Persian/Arabic-Indic digits; normalize() converts
-    // them to ASCII and strips thousands separators before parsing.
-    const value = Number(normalize(toman).replace(/,/g, ''))
-    const rial = Math.round(value * 10) // toman → rial
-    if (!Number.isFinite(value) || value <= 0 || !Number.isSafeInteger(rial)) {
+    const rial = parseTomanInput(toman)
+    if (rial === null) {
       setError('Enter an amount greater than zero.')
       return
     }
