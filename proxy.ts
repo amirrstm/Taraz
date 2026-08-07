@@ -12,7 +12,7 @@ export function isExemptPath(pathname: string): boolean {
   return EXEMPT_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
   if (isExemptPath(pathname)) return NextResponse.next()
 

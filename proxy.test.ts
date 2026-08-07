@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, expect, test } from 'vitest'
-import { isExemptPath, middleware } from '@/middleware'
+import { isExemptPath, proxy } from '@/proxy'
 
 const ORIGINAL_SECRET = process.env.COOKIE_SECRET
 
@@ -64,14 +64,14 @@ test('does not exempt ordinary app routes', () => {
 
 test('redirects to /login (not throws) when COOKIE_SECRET is unset, even with a well-formed forged cookie', async () => {
   delete process.env.COOKIE_SECRET
-  const res = await middleware(req('/inbox', 'v1.9999999999999.deadbeef'))
+  const res = await proxy(req('/inbox', 'v1.9999999999999.deadbeef'))
   expect(res.status).toBe(307)
   expect(res.headers.get('location')).toBe('http://localhost/login')
 })
 
 test('redirects to /login when COOKIE_SECRET is an empty string', async () => {
   process.env.COOKIE_SECRET = ''
-  const res = await middleware(req('/inbox', 'v1.9999999999999.deadbeef'))
+  const res = await proxy(req('/inbox', 'v1.9999999999999.deadbeef'))
   expect(res.status).toBe(307)
   expect(res.headers.get('location')).toBe('http://localhost/login')
 })
@@ -80,17 +80,17 @@ test('redirects to /login when COOKIE_SECRET is an empty string', async () => {
 
 for (const path of ['/', '/inbox', '/month', '/add', '//inbox', '/inbox/', '/INBOX', '/inbox%2f']) {
   test(`guards ${path} without a valid cookie`, async () => {
-    const res = await middleware(req(path))
+    const res = await proxy(req(path))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toBe('http://localhost/login')
   })
 }
 
 test('guards the resolved target of a traversal attempt through an exempt prefix', async () => {
-  // The URL parser resolves `..` before the pathname reaches middleware
+  // The URL parser resolves `..` before the pathname reaches the proxy
   // (here to `/api/inbox`), so a traversal segment can never ride the
   // `/api/sms` exemption to reach an unguarded route.
-  const res = await middleware(req('/api/sms/../inbox'))
+  const res = await proxy(req('/api/sms/../inbox'))
   expect(res.status).toBe(307)
   expect(res.headers.get('location')).toBe('http://localhost/login')
 })
@@ -98,13 +98,13 @@ test('guards the resolved target of a traversal attempt through an exempt prefix
 // --- Exempt routes pass through untouched -----------------------------------
 
 test('lets /api/sms through without any cookie', async () => {
-  const res = await middleware(req('/api/sms'))
+  const res = await proxy(req('/api/sms'))
   expect(res.status).toBe(200)
   expect(res.headers.get('location')).toBeNull()
 })
 
 test('lets /login through without any cookie', async () => {
-  const res = await middleware(req('/login'))
+  const res = await proxy(req('/login'))
   expect(res.status).toBe(200)
   expect(res.headers.get('location')).toBeNull()
 })
