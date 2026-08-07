@@ -19,3 +19,15 @@ export function monthRange(year: number, month1to12: number): { startMs: number;
     endMs: Date.UTC(year, month1to12, 1) - TEHRAN_OFFSET_MS,
   }
 }
+
+/**
+ * The Iran-local (year, month) containing `nowMs`. Used to pick a default
+ * month for the month screens: reading `getUTCFullYear`/`getUTCMonth`
+ * directly off `nowMs` would use UTC's calendar date, which is wrong for
+ * the ~3.5 hour window between UTC midnight and Tehran midnight (and, on
+ * the 1st, for the whole month until 03:30 Tehran).
+ */
+export function currentYearMonth(nowMs: number): { year: number; month: number } {
+  const tehranNow = new Date(nowMs + TEHRAN_OFFSET_MS)
+  return { year: tehranNow.getUTCFullYear(), month: tehranNow.getUTCMonth() + 1 }
+}

@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CategoryTransactionList } from './CategoryTransactionList'
-import { getCategoryById, listByCategory } from '@/lib/db/queries'
+import { getCategoryById, listByCategory, listCategories } from '@/lib/db/queries'
 import { formatToman } from '@/lib/money'
-import { monthRange } from '@/lib/month'
+import { currentYearMonth, monthRange } from '@/lib/month'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,15 +22,18 @@ export default async function CategoryMonthPage({
   if (!category) notFound()
 
   const query = await searchParams
-  const today = new Date()
-  const year = Number(query.y) || today.getUTCFullYear()
-  const month = Number(query.m) || today.getUTCMonth() + 1
+  const defaultYm = currentYearMonth(Date.now())
+  const year = Number(query.y) || defaultYm.year
+  const month = Number(query.m) || defaultYm.month
 
   // Same Iran-local window monthSummary used to compute the total the user
   // tapped from — must not be recomputed differently here, or the two
   // totals will disagree.
   const { startMs, endMs } = monthRange(year, month)
-  const items = await listByCategory(startMs, endMs, categoryId)
+  const [items, categories] = await Promise.all([
+    listByCategory(startMs, endMs, categoryId),
+    listCategories(),
+  ])
   const total = items
     .filter((t) => t.direction === 'debit')
     .reduce((sum, t) => sum + t.amount, 0)
@@ -62,6 +65,7 @@ export default async function CategoryMonthPage({
           description: t.description,
           occurredAt: t.occurredAt,
         }))}
+        categories={categories}
       />
     </main>
   )

@@ -1,6 +1,13 @@
 import { rmSync } from 'node:fs'
 import { afterAll, beforeAll, expect, test } from 'vitest'
-import { monthRange } from '@/lib/month'
+import { currentYearMonth, monthRange } from '@/lib/month'
+
+// 2026-08-31T21:00:00Z is 2026-09-01T00:30 Tehran: the default month must
+// roll over to September even though UTC is still in August.
+test('currentYearMonth rolls over at Tehran midnight, not UTC midnight', () => {
+  const nowMs = Date.parse('2026-08-31T21:00:00Z')
+  expect(currentYearMonth(nowMs)).toEqual({ year: 2026, month: 9 })
+})
 
 test('returns the Iran-local bounds of a month', () => {
   const { startMs, endMs } = monthRange(2026, 8)

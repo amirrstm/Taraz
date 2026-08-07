@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { DailyBars } from '@/components/DailyBars'
 import { monthSummary } from '@/lib/db/queries'
 import { formatToman } from '@/lib/money'
-import { monthRange } from '@/lib/month'
+import { currentYearMonth, monthRange } from '@/lib/month'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,9 +12,9 @@ export default async function MonthPage({
   searchParams: Promise<{ y?: string; m?: string }>
 }) {
   const params = await searchParams
-  const today = new Date()
-  const year = Number(params.y) || today.getUTCFullYear()
-  const month = Number(params.m) || today.getUTCMonth() + 1
+  const defaultYm = currentYearMonth(Date.now())
+  const year = Number(params.y) || defaultYm.year
+  const month = Number(params.m) || defaultYm.month
 
   const { startMs, endMs } = monthRange(year, month)
   const summary = await monthSummary(startMs, endMs)
