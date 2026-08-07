@@ -19,9 +19,13 @@ import type { Direction } from '@/lib/sms/types'
  */
 export type ActionResult = { ok: true } | { ok: false; error: string }
 
-/** A positive integer rial amount, rejecting zero, negative, float, and non-finite values. */
+/**
+ * A positive integer rial amount, rejecting zero, negative, float,
+ * non-finite, and unsafe-integer values (>= 2^53, which the libsql driver
+ * cannot represent and throws a RangeError on read).
+ */
 function isValidAmount(amount: number): boolean {
-  return Number.isFinite(amount) && Number.isInteger(amount) && amount > 0
+  return Number.isSafeInteger(amount) && amount > 0
 }
 
 function revalidateAll(): void {

@@ -94,6 +94,24 @@ test('editAction accepts a positive integer amount', async () => {
   expect((await q.getTransactionById(txId))?.amount).toBe(42_000)
 })
 
+test('editAction rejects an amount past Number.MAX_SAFE_INTEGER and leaves the row unchanged', async () => {
+  const txId = await makeTx({ amount: 5000 })
+  const result = await actions.editAction(txId, { amount: Number.MAX_SAFE_INTEGER + 1 })
+  expect(result).toEqual({ ok: false, error: 'Amount must be a positive integer.' })
+  // The "unchanged afterward" half matters: a rejected write that still
+  // mutated the row would be this bug wearing a different hat. Also,
+  // Number.MAX_SAFE_INTEGER + 1 is unsafe to read back from libsql once
+  // written, so a passing read here is itself proof nothing was written.
+  expect((await q.getTransactionById(txId))?.amount).toBe(5000)
+})
+
+test('editAction accepts Number.MAX_SAFE_INTEGER itself (no overcorrection)', async () => {
+  const txId = await makeTx()
+  const result = await actions.editAction(txId, { amount: Number.MAX_SAFE_INTEGER })
+  expect(result).toEqual({ ok: true })
+  expect((await q.getTransactionById(txId))?.amount).toBe(Number.MAX_SAFE_INTEGER)
+})
+
 test('editAction rejects a nonexistent transaction', async () => {
   const result = await actions.editAction(999_999, { amount: 1000 })
   expect(result).toEqual({ ok: false, error: 'Transaction not found.' })
