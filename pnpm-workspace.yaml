@@ -3,3 +3,10 @@
 allowBuilds:
   esbuild: true
   sharp: true
+
+# Use the pnpm already on PATH instead of downloading a managed copy into
+# ~/Library/pnpm/.tools. Without this, package.json's `packageManager` field
+# makes pnpm try to switch to its own build of the same version and fail with
+# ENOENT when that copy was never installed by pnpm's version manager.
+# Vercel provisions its own pnpm from `packageManager`, so this is local-only.
+managePackageManagerVersions: false
