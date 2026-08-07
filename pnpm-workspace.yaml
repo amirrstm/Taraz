@@ -1,0 +1,5 @@
+# Postinstall build scripts that are allowed to run.
+# esbuild backs vitest and tsx; sharp backs Next.js image optimization.
+allowBuilds:
+  esbuild: true
+  sharp: true
