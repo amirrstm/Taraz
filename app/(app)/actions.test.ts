@@ -151,6 +151,52 @@ test('addManualAction rejects a nonexistent category', async () => {
   expect(result).toEqual({ ok: false, error: 'Category not found.' })
 })
 
+test('categorizeAction rejects a non-finite transaction id instead of throwing', async () => {
+  const cat = (await q.listCategories())[0]
+  const result = await actions.categorizeAction(NaN, cat.id)
+  expect(result).toEqual({ ok: false, error: 'Invalid id.' })
+})
+
+test('editAction rejects an empty patch instead of throwing', async () => {
+  const txId = await makeTx()
+  const result = await actions.editAction(txId, {})
+  expect(result).toEqual({ ok: false, error: 'No changes given.' })
+})
+
+test('editAction rejects a patch with only amount:undefined instead of throwing', async () => {
+  const txId = await makeTx()
+  const result = await actions.editAction(txId, { amount: undefined })
+  expect(result).toEqual({ ok: false, error: 'No changes given.' })
+})
+
+test('addManualAction rejects an invalid direction', async () => {
+  const result = await actions.addManualAction({
+    amount: 1000,
+    // @ts-expect-error deliberately invalid at the type boundary
+    direction: 'sideways',
+    categoryId: null,
+    note: null,
+  })
+  expect(result).toEqual({ ok: false, error: 'Direction must be debit or credit.' })
+})
+
+test('addManualAction rejects a note over the length cap', async () => {
+  const result = await actions.addManualAction({
+    amount: 1000,
+    direction: 'debit',
+    categoryId: null,
+    note: 'x'.repeat(501),
+  })
+  expect(result).toEqual({ ok: false, error: 'Note is too long.' })
+})
+
+test('editAction rejects an invalid direction', async () => {
+  const txId = await makeTx()
+  // @ts-expect-error deliberately invalid at the type boundary
+  const result = await actions.editAction(txId, { direction: 'sideways' })
+  expect(result).toEqual({ ok: false, error: 'Direction must be debit or credit.' })
+})
+
 test('addManualAction succeeds with valid input', async () => {
   const cat = (await q.listCategories())[0]
   const result = await actions.addManualAction({
