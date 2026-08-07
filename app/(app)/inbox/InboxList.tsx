@@ -23,10 +23,6 @@ export function InboxList({ items, categories }: { items: Item[]; categories: Ca
   const [toast, setToast] = useState<Toast | null>(null)
   const nextToastId = useRef(0)
 
-  if (items.length === 0 && toast === null) {
-    return <p className="px-1 py-16 text-center text-neutral-500">Nothing to categorize.</p>
-  }
-
   function handleCategorized(txId: number, categoryName: string) {
     nextToastId.current += 1
     setToast({ id: nextToastId.current, txId, categoryName })
