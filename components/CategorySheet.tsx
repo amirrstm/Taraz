@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { Drawer } from 'vaul'
 import type { Category } from '@/lib/db/schema'
-import { normalize } from '@/lib/sms/normalize'
+import { parseTomanInput } from '@/lib/money'
 import { categorizeAction, deleteAction, editAction } from '@/app/(app)/actions'
 
 type Tx = { id: number; amount: number; status: string }
@@ -34,23 +34,20 @@ export function CategorySheet({
 
   function pick(categoryId: number) {
     if (!tx) return
-    let rial: number | null = null
 
-    if (needsAmount) {
-      // Bank SMS digits may be Persian/Arabic-Indic; normalize() converts
-      // them to ASCII and strips thousands separators before parsing.
-      const value = Number(normalize(toman).replace(/,/g, ''))
-      if (!Number.isFinite(value) || value <= 0) {
-        setError('Enter the amount in toman first.')
-        return
-      }
-      rial = Math.round(value * 10)
+    // The field is always shown, prefilled with the current amount, so a
+    // miscategorized row's amount can be corrected here too — not just
+    // filled in for a needs_review row that has none yet.
+    const rial = parseTomanInput(toman)
+    if (rial === null) {
+      setError('Enter the amount in toman first.')
+      return
     }
 
     setError(null)
     start(async () => {
       try {
-        if (rial !== null) {
+        if (rial !== tx.amount) {
           const editResult = await editAction(tx.id, { amount: rial })
           if (!editResult.ok) {
             setError(editResult.error)
@@ -90,18 +87,16 @@ export function CategorySheet({
         <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-neutral-900 pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-neutral-700" />
           <Drawer.Title className="px-5 pt-4 text-sm text-neutral-400">
-            {needsAmount ? 'Enter the amount, then pick a category' : 'Choose a category'}
+            {needsAmount ? 'Enter the amount, then pick a category' : 'Edit amount or pick a category'}
           </Drawer.Title>
-          {needsAmount && (
-            <input
-              inputMode="numeric"
-              autoFocus
-              value={toman}
-              onChange={(e) => setToman(e.target.value)}
-              placeholder="Amount in toman"
-              className="mx-4 mt-3 rounded-xl bg-neutral-800 px-4 py-3 text-xl outline-none"
-            />
-          )}
+          <input
+            inputMode="numeric"
+            autoFocus={needsAmount}
+            value={toman}
+            onChange={(e) => setToman(e.target.value)}
+            placeholder="Amount in toman"
+            className="mx-4 mt-3 rounded-xl bg-neutral-800 px-4 py-3 text-xl outline-none"
+          />
           <div className="grid grid-cols-3 gap-3 p-4">
             {categories.map((c) => (
               <button

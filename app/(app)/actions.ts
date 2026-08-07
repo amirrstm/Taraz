@@ -29,12 +29,31 @@ function isValidAmount(amount: number): boolean {
   return Number.isSafeInteger(amount) && amount > 0
 }
 
+const DIRECTIONS: Direction[] = ['debit', 'credit']
+
+function isValidDirection(direction: string): direction is Direction {
+  return (DIRECTIONS as string[]).includes(direction)
+}
+
+/** Belt-and-braces cap: this is free-text, not a bounded enum. */
+const MAX_NOTE_LENGTH = 500
+
+function isValidId(id: number): boolean {
+  return Number.isFinite(id)
+}
+
 function revalidateAll(): void {
   revalidatePath('/inbox')
   revalidatePath('/month')
+  // The dynamic segment template, so every category drill-down page is
+  // covered, not just the one the mutation happened to originate from.
+  revalidatePath('/month/category/[id]', 'page')
 }
 
 export async function categorizeAction(txId: number, categoryId: number): Promise<ActionResult> {
+  if (!isValidId(txId) || !isValidId(categoryId)) {
+    return { ok: false, error: 'Invalid id.' }
+  }
   if (!(await getTransactionById(txId))) return { ok: false, error: 'Transaction not found.' }
   if (!(await getCategoryById(categoryId))) return { ok: false, error: 'Category not found.' }
 
@@ -44,6 +63,7 @@ export async function categorizeAction(txId: number, categoryId: number): Promis
 }
 
 export async function uncategorizeAction(txId: number): Promise<ActionResult> {
+  if (!isValidId(txId)) return { ok: false, error: 'Invalid id.' }
   if (!(await getTransactionById(txId))) return { ok: false, error: 'Transaction not found.' }
 
   await clearCategory(txId)
@@ -52,6 +72,7 @@ export async function uncategorizeAction(txId: number): Promise<ActionResult> {
 }
 
 export async function deleteAction(txId: number): Promise<ActionResult> {
+  if (!isValidId(txId)) return { ok: false, error: 'Invalid id.' }
   if (!(await getTransactionById(txId))) return { ok: false, error: 'Transaction not found.' }
 
   await deleteTransaction(txId)
@@ -68,6 +89,12 @@ export async function addManualAction(input: {
   if (!isValidAmount(input.amount)) {
     return { ok: false, error: 'Amount must be a positive integer.' }
   }
+  if (!isValidDirection(input.direction)) {
+    return { ok: false, error: 'Direction must be debit or credit.' }
+  }
+  if (input.note !== null && input.note.length > MAX_NOTE_LENGTH) {
+    return { ok: false, error: 'Note is too long.' }
+  }
   if (input.categoryId !== null && !(await getCategoryById(input.categoryId))) {
     return { ok: false, error: 'Category not found.' }
   }
@@ -81,9 +108,24 @@ export async function editAction(
   txId: number,
   patch: { amount?: number; direction?: Direction; categoryId?: number | null; note?: string | null },
 ): Promise<ActionResult> {
+  if (!isValidId(txId)) return { ok: false, error: 'Invalid id.' }
+  if (
+    patch.amount === undefined &&
+    patch.direction === undefined &&
+    patch.categoryId === undefined &&
+    patch.note === undefined
+  ) {
+    return { ok: false, error: 'No changes given.' }
+  }
   if (!(await getTransactionById(txId))) return { ok: false, error: 'Transaction not found.' }
   if (patch.amount !== undefined && !isValidAmount(patch.amount)) {
     return { ok: false, error: 'Amount must be a positive integer.' }
+  }
+  if (patch.direction !== undefined && !isValidDirection(patch.direction)) {
+    return { ok: false, error: 'Direction must be debit or credit.' }
+  }
+  if (patch.note !== undefined && patch.note !== null && patch.note.length > MAX_NOTE_LENGTH) {
+    return { ok: false, error: 'Note is too long.' }
   }
   if (
     patch.categoryId !== undefined &&
