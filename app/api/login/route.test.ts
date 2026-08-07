@@ -60,6 +60,28 @@ test('rate limiting is keyed per IP, not global', async () => {
   expect(res.status).toBe(303)
 })
 
+// bcryptjs 3 emits `$2b$` hashes, but any hash already sitting in
+// APP_PASSWORD_HASH was generated under bcryptjs 2 as `$2a$`. If v3 stopped
+// verifying those, the upgrade would silently lock the user out of the app.
+// This literal was produced by bcryptjs@2.4.3 via hashSync(PASSWORD, 10).
+const V2_HASH = '$2a$10$yKJa03Dbcy2dDJt58VGuOudilhC3eFZ73MwtKS3Whtk57Vfr6X3IW'
+
+test('a bcryptjs 2 ($2a$) hash still authenticates under bcryptjs 3', async () => {
+  expect(V2_HASH.startsWith('$2a$')).toBe(true)
+  const savedHash = process.env.APP_PASSWORD_HASH
+  process.env.APP_PASSWORD_HASH = V2_HASH
+  try {
+    const ok = await POST(post(PASSWORD, '10.0.0.6'))
+    expect(ok.status).toBe(303)
+    expect(ok.headers.get('location')).toContain('/inbox')
+
+    const bad = await POST(post('nope', '10.0.0.7'))
+    expect(bad.headers.get('location')).toContain('/login?error=1')
+  } finally {
+    process.env.APP_PASSWORD_HASH = savedHash
+  }
+})
+
 test('a missing APP_PASSWORD_HASH fails closed with 500, independent of rate limiting', async () => {
   const savedHash = process.env.APP_PASSWORD_HASH
   delete process.env.APP_PASSWORD_HASH
