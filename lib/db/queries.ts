@@ -3,6 +3,7 @@ import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 import { getDb } from '@/lib/db/client'
 import { categories, smsLog, transactions } from '@/lib/db/schema'
 import type { Category, Transaction } from '@/lib/db/schema'
+import { TEHRAN_OFFSET_MS } from '@/lib/sms/jalali'
 import type { Direction, ParsedSms } from '@/lib/sms/types'
 
 const DEDUPE_WINDOW_MS = 5 * 60 * 1000
@@ -199,14 +200,18 @@ export async function monthSummary(
       total: Number(r.total ?? 0),
     }))
 
+  // Shift by the fixed Tehran offset before extracting the day so the
+  // bucket reflects Iran-local wall-clock time, not UTC.
+  const tehranDay = sql`strftime('%d', (${transactions.occurredAt} + ${TEHRAN_OFFSET_MS}) / 1000, 'unixepoch')`
+
   const daily = (await db
     .select({
-      day: sql<number>`cast(strftime('%d', ${transactions.occurredAt} / 1000, 'unixepoch') as integer)`,
+      day: sql<number>`cast(${tehranDay} as integer)`,
       total: sql<number>`sum(${transactions.amount})`,
     })
     .from(transactions)
     .where(inRange)
-    .groupBy(sql`strftime('%d', ${transactions.occurredAt} / 1000, 'unixepoch')`))
+    .groupBy(tehranDay))
     .map((r) => ({ day: Number(r.day), total: Number(r.total ?? 0) }))
 
   return {

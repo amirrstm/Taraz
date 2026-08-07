@@ -1,7 +1,7 @@
 import { toGregorian, isValidJalaaliDate } from 'jalaali-js'
 
 /** Iran standard time. No daylight saving since 2022. */
-const TEHRAN_OFFSET_MS = (3 * 60 + 30) * 60 * 1000
+export const TEHRAN_OFFSET_MS = (3 * 60 + 30) * 60 * 1000
 
 /**
  * Converts a Jalali calendar date and Tehran wall-clock time to unix

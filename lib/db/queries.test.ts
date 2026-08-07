@@ -116,6 +116,30 @@ test('monthSummary totals only categorized debits in range', async () => {
   expect(summary.daily.length).toBeGreaterThan(0)
 })
 
+test('monthSummary buckets the daily breakdown by Iran-local day, not UTC', async () => {
+  const cat = (await q.listCategories()).find((c) => c.name === 'Dining')!
+  // 2026-08-05T21:00:00Z is 00:30 on Aug 6 in Tehran (UTC+03:30).
+  const lateUtc = Date.parse('2026-08-05T21:00:00Z')
+  // 2026-08-06T20:00:00Z is 23:30 on Aug 6 in Tehran, still the same day.
+  const lateSameDayUtc = Date.parse('2026-08-06T20:00:00Z')
+
+  await q.insertManual({
+    amount: 111000, direction: 'debit', categoryId: cat.id, note: null, occurredAt: lateUtc,
+  })
+  await q.insertManual({
+    amount: 222000, direction: 'debit', categoryId: cat.id, note: null, occurredAt: lateSameDayUtc,
+  })
+
+  const start = Date.parse('2026-08-01T00:00:00Z')
+  const end = Date.parse('2026-09-01T00:00:00Z')
+  const summary = await q.monthSummary(start, end)
+
+  const day5 = summary.daily.find((d) => d.day === 5)
+  const day6 = summary.daily.find((d) => d.day === 6)
+  expect(day5?.total ?? 0).toBe(0)
+  expect(day6?.total).toBe(333000)
+})
+
 test('updateTransaction changes the amount', async () => {
   const id = await q.insertManual({
     amount: 1000, direction: 'debit', categoryId: null, note: null, occurredAt: NOW,
