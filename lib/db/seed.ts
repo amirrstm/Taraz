@@ -16,11 +16,13 @@ export const SEED_CATEGORIES = [
   { name: 'Fuel', icon: '⛽', sortOrder: 10 },
   { name: 'Vehicle Repair', icon: '🔧', sortOrder: 11 },
   { name: 'Installments', icon: '🏦', sortOrder: 12 },
-  { name: 'Pets', icon: '🐾', sortOrder: 13 },
-  { name: 'Kiana', icon: '💗', sortOrder: 14 },
-  { name: 'Transfer', icon: '🔁', sortOrder: 15 },
-  { name: 'Income', icon: '💰', sortOrder: 16 },
-  { name: 'Other', icon: '📦', sortOrder: 17 },
+  { name: 'Subscriptions', icon: '💳', sortOrder: 13 },
+  { name: 'Pets', icon: '🐾', sortOrder: 14 },
+  { name: 'Personal', icon: '🚬', sortOrder: 15 },
+  { name: 'Kiana', icon: '💗', sortOrder: 16 },
+  { name: 'Transfer', icon: '🔁', sortOrder: 17 },
+  { name: 'Income', icon: '💰', sortOrder: 18 },
+  { name: 'Other', icon: '📦', sortOrder: 19 },
 ]
 
 /**
