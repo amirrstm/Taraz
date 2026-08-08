@@ -16,7 +16,7 @@ afterAll(() => {
 test('migrations create the tables and seed categories', async () => {
   const { migrate } = await import('drizzle-orm/libsql/migrator')
   const { getDb } = await import('@/lib/db/client')
-  const { seedCategories } = await import('@/lib/db/seed')
+  const { SEED_CATEGORIES, seedCategories } = await import('@/lib/db/seed')
   const { categories } = await import('@/lib/db/schema')
 
   const db = getDb()
@@ -25,7 +25,15 @@ test('migrations create the tables and seed categories', async () => {
   await seedCategories(db) // idempotent
 
   const rows = await db.select().from(categories)
-  expect(rows).toHaveLength(10)
+  expect(rows).toHaveLength(SEED_CATEGORIES.length)
   expect(rows.map((r) => r.name)).toContain('Groceries')
   expect(existsSync(TEST_DB)).toBe(true)
+
+  // Re-seeding must correct a stale sort order rather than skip the row, or a
+  // category inserted mid-list would interleave with the pre-existing ones.
+  const { eq } = await import('drizzle-orm')
+  await db.update(categories).set({ sortOrder: 99 }).where(eq(categories.name, 'Groceries'))
+  await seedCategories(db)
+  const [groceries] = await db.select().from(categories).where(eq(categories.name, 'Groceries'))
+  expect(groceries.sortOrder).toBe(1)
 })
