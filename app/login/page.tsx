@@ -1,3 +1,8 @@
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -8,18 +13,30 @@ export default async function LoginPage({
     <main className="flex min-h-dvh flex-col justify-center gap-6 px-6">
       <h1 className="text-2xl font-semibold">Taraz</h1>
       <form action="/api/login" method="post" className="flex flex-col gap-3">
-        <input
+        <Label htmlFor="password" className="sr-only">
+          Password
+        </Label>
+        <Input
+          id="password"
           type="password"
           name="password"
           autoComplete="current-password"
           placeholder="Password"
           autoFocus
-          className="rounded-xl bg-neutral-900 px-4 py-4 text-lg outline-none ring-1 ring-neutral-800 focus:ring-neutral-600"
+          // `h-auto` overrides the primitive's fixed height, which would shrink
+          // this deliberately large tap target. `md:text-lg` keeps the field at
+          // 18px on every width: below 16px, iOS Safari zooms the viewport on
+          // focus.
+          className="h-auto rounded-xl px-4 py-4 text-lg md:text-lg"
         />
-        {error && <p className="text-sm text-red-400">Wrong password.</p>}
-        <button className="rounded-xl bg-neutral-100 px-4 py-4 text-lg font-medium text-neutral-900">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>Wrong password.</AlertDescription>
+          </Alert>
+        )}
+        <Button type="submit" className="h-auto rounded-xl px-4 py-4 text-lg font-medium">
           Sign in
-        </button>
+        </Button>
       </form>
     </main>
   )

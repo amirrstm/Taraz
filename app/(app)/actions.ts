@@ -12,6 +12,8 @@ import {
 } from '@/lib/db/queries'
 import { ingestSms, type IngestResult } from '@/lib/ingest'
 import type { Direction } from '@/lib/sms/types'
+/** Belt-and-braces cap: this is free-text, not a bounded enum. */
+import { MAX_NOTE_LENGTH } from '@/lib/transaction'
 
 /**
  * Every mutating action returns this instead of throwing on bad input.
@@ -35,8 +37,6 @@ function isValidDirection(direction: string): direction is Direction {
   return (DIRECTIONS as string[]).includes(direction)
 }
 
-/** Belt-and-braces cap: this is free-text, not a bounded enum. */
-const MAX_NOTE_LENGTH = 500
 
 function isValidId(id: number): boolean {
   return Number.isFinite(id)

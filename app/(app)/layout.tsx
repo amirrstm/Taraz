@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // the physical top of the screen, so the first heading lands under the
     // clock. The insets below reserve that space, and the matching bottom pad
     // keeps the last row clear of the fixed tab bar and the home indicator.
-    <div className="pt-[env(safe-area-inset-top)] pb-[calc(6rem+env(safe-area-inset-bottom))]">
+    <div className="pt-[env(safe-area-inset-top)] pb-[var(--tabbar-clearance)]">
       {children}
       <TabBar inboxCount={count} />
     </div>

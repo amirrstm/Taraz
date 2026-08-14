@@ -10,7 +10,7 @@ export default async function AddPage() {
       <h1 className="mb-4 px-1 text-2xl font-semibold">Add</h1>
       <AddForm categories={await listCategories()} />
       <h2 className="mb-3 mt-10 px-1 text-lg font-semibold">Paste SMS</h2>
-      <p className="mb-3 px-1 text-sm text-neutral-500">
+      <p className="mb-3 px-1 text-sm text-muted-foreground">
         Missed a message? Copy it from Messages and paste it here.
       </p>
       <PasteSms />

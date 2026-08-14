@@ -190,6 +190,32 @@ test('addManualAction rejects a note over the length cap', async () => {
   expect(result).toEqual({ ok: false, error: 'Note is too long.' })
 })
 
+test('editAction writes a note onto an existing transaction', async () => {
+  const txId = await makeTx()
+  expect(await actions.editAction(txId, { note: 'Lunch with Kiana' })).toEqual({ ok: true })
+  expect((await q.getTransactionById(txId))?.note).toBe('Lunch with Kiana')
+})
+
+test('editAction clears a note when given null', async () => {
+  const txId = await makeTx({ note: 'to be removed' })
+  expect(await actions.editAction(txId, { note: null })).toEqual({ ok: true })
+  expect((await q.getTransactionById(txId))?.note).toBeNull()
+})
+
+test('editAction rejects a note over the length cap', async () => {
+  const txId = await makeTx()
+  const result = await actions.editAction(txId, { note: 'x'.repeat(501) })
+  expect(result).toEqual({ ok: false, error: 'Note is too long.' })
+})
+
+test('editAction saves an amount and a note together', async () => {
+  const txId = await makeTx()
+  expect(await actions.editAction(txId, { amount: 2500, note: 'split bill' })).toEqual({ ok: true })
+  const tx = await q.getTransactionById(txId)
+  expect(tx?.amount).toBe(2500)
+  expect(tx?.note).toBe('split bill')
+})
+
 test('editAction rejects an invalid direction', async () => {
   const txId = await makeTx()
   // @ts-expect-error deliberately invalid at the type boundary

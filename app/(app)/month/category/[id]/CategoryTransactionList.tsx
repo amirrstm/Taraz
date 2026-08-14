@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { CategorySheet } from '@/components/CategorySheet'
 import { TransactionCard } from '@/components/TransactionCard'
 import type { Category } from '@/lib/db/schema'
@@ -11,6 +12,7 @@ type Item = {
   direction: string
   status: string
   description: string | null
+  note: string | null
   occurredAt: number
 }
 
@@ -30,7 +32,7 @@ export function CategoryTransactionList({
   const [selected, setSelected] = useState<Item | null>(null)
 
   if (items.length === 0) {
-    return <p className="px-1 py-16 text-center text-neutral-500">No transactions.</p>
+    return <p className="px-1 py-16 text-center text-muted-foreground">No transactions.</p>
   }
 
   return (
@@ -43,6 +45,7 @@ export function CategoryTransactionList({
               direction={item.direction}
               status={item.status}
               description={item.description}
+              note={item.note}
               occurredAt={item.occurredAt}
               onClick={() => setSelected(item)}
             />
@@ -54,6 +57,10 @@ export function CategoryTransactionList({
         categories={categories}
         open={selected !== null}
         onOpenChange={(open) => !open && setSelected(null)}
+        // No Undo here, unlike the Inbox: from a drill-down the row is being
+        // moved between categories, and undoing would clear the category
+        // outright rather than restore the previous one.
+        onCategorized={(_txId, categoryName) => toast(`Moved to ${categoryName}`)}
       />
     </>
   )

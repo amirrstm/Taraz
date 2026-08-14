@@ -1,6 +1,9 @@
 'use client'
 
+import { ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { formatToman } from '@/lib/money'
+import { describe } from '@/lib/sms/describe'
 import { TEHRAN_OFFSET_MS } from '@/lib/sms/jalali'
 
 const MONTHS = [
@@ -30,33 +33,45 @@ export function TransactionCard({
   direction,
   status,
   description,
+  note,
   occurredAt,
   onClick,
 }: {
   amount: number
   direction: string
   status: string
+  /** The bank's own purpose, parsed from the SMS. */
   description: string | null
+  /** The user's own words, which win over the bank's when both exist. */
+  note: string | null
   occurredAt: number
   onClick: () => void
 }) {
   const time = formatTehran(occurredAt)
   const review = status === 'needs_review'
+  // The parser stores the bank's Persian purpose verbatim; the UI is English,
+  // so it is translated here rather than at ingest time — the stored SMS stays
+  // exactly as received.
+  const label = note?.trim() || describe(description)
 
   return (
-    <button
+    <Button
+      variant="ghost"
       onClick={onClick}
-      className="flex w-full items-center justify-between rounded-xl bg-neutral-900 px-4 py-4 text-left active:bg-neutral-800"
+      className="h-auto w-full justify-between rounded-xl bg-card px-4 py-4 text-left hover:bg-accent active:bg-accent"
     >
       <span className="min-w-0">
         <span className="block text-lg font-semibold">
           {review ? 'Unparsed SMS' : `${direction === 'credit' ? '+' : ''}${formatToman(amount)} T`}
         </span>
-        <span className="block truncate text-sm text-neutral-400">
-          {description ?? time}
+        {/* `dir="auto"` because a note is free text and may well be Persian,
+            which would otherwise render bidi-jumbled and truncate on the wrong
+            side. */}
+        <span dir="auto" className="block truncate text-sm text-muted-foreground">
+          {label ?? time}
         </span>
       </span>
-      <span className="ml-3 shrink-0 text-neutral-600">›</span>
-    </button>
+      <ChevronRight className="ml-3 size-4 shrink-0 text-muted-foreground" aria-hidden />
+    </Button>
   )
 }

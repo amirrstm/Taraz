@@ -1,10 +1,10 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 import { uncategorizeAction } from '@/app/(app)/actions'
 import { CategorySheet } from '@/components/CategorySheet'
 import { TransactionCard } from '@/components/TransactionCard'
-import { UndoToast } from '@/components/UndoToast'
 import type { Category } from '@/lib/db/schema'
 
 type Item = {
@@ -13,29 +13,33 @@ type Item = {
   direction: string
   status: string
   description: string | null
+  note: string | null
   occurredAt: number
 }
 
-type Toast = { id: number; txId: number; categoryName: string }
-
 export function InboxList({ items, categories }: { items: Item[]; categories: Category[] }) {
   const [selected, setSelected] = useState<Item | null>(null)
-  const [toast, setToast] = useState<Toast | null>(null)
-  const nextToastId = useRef(0)
 
   function handleCategorized(txId: number, categoryName: string) {
-    nextToastId.current += 1
-    setToast({ id: nextToastId.current, txId, categoryName })
-  }
-
-  function handleUndo(txId: number) {
-    void uncategorizeAction(txId)
+    toast(`Categorized as ${categoryName}`, {
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          void uncategorizeAction(txId).then((result) => {
+            // Undo failing silently would leave the row categorized with no
+            // sign anything went wrong.
+            if (!result.ok) toast.error(result.error)
+          })
+        },
+      },
+    })
   }
 
   return (
     <>
       {items.length === 0 ? (
-        <p className="px-1 py-16 text-center text-neutral-500">Nothing to categorize.</p>
+        <p className="px-1 py-16 text-center text-muted-foreground">Nothing to categorize.</p>
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((t) => (
@@ -45,6 +49,7 @@ export function InboxList({ items, categories }: { items: Item[]; categories: Ca
               direction={t.direction}
               status={t.status}
               description={t.description}
+              note={t.note}
               occurredAt={t.occurredAt}
               onClick={() => setSelected(t)}
             />
@@ -58,14 +63,6 @@ export function InboxList({ items, categories }: { items: Item[]; categories: Ca
         onOpenChange={(open) => !open && setSelected(null)}
         onCategorized={handleCategorized}
       />
-      {toast && (
-        <UndoToast
-          key={toast.id}
-          message={`Categorized as ${toast.categoryName}`}
-          onUndo={() => handleUndo(toast.txId)}
-          onDismiss={() => setToast(null)}
-        />
-      )}
     </>
   )
 }

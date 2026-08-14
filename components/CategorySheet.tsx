@@ -1,12 +1,24 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { Drawer } from 'vaul'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import type { Category } from '@/lib/db/schema'
 import { parseTomanInput } from '@/lib/money'
+import { MAX_NOTE_LENGTH } from '@/lib/transaction'
 import { categorizeAction, deleteAction, editAction } from '@/app/(app)/actions'
 
-type Tx = { id: number; amount: number; status: string }
+type Tx = { id: number; amount: number; status: string; note: string | null }
 
 export function CategorySheet({
   tx,
@@ -24,11 +36,13 @@ export function CategorySheet({
   const [pending, start] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [toman, setToman] = useState('')
+  const [note, setNote] = useState('')
 
   const needsAmount = tx !== null && tx.amount === 0
 
   useEffect(() => {
     setToman(tx && tx.amount > 0 ? String(Math.round(tx.amount / 10)) : '')
+    setNote(tx?.note ?? '')
     setError(null)
   }, [tx])
 
@@ -47,8 +61,15 @@ export function CategorySheet({
     setError(null)
     start(async () => {
       try {
-        if (rial !== tx.amount) {
-          const editResult = await editAction(tx.id, { amount: rial })
+        // Only the fields that actually changed are sent: editAction rejects an
+        // empty patch, so an untouched amount and note must not be included.
+        const nextNote = note.trim() || null
+        const patch: { amount?: number; note?: string | null } = {}
+        if (rial !== tx.amount) patch.amount = rial
+        if (nextNote !== tx.note) patch.note = nextNote
+
+        if (patch.amount !== undefined || patch.note !== undefined) {
+          const editResult = await editAction(tx.id, patch)
           if (!editResult.ok) {
             setError(editResult.error)
             return
@@ -70,56 +91,106 @@ export function CategorySheet({
 
   function remove() {
     if (!tx) return
+    setError(null)
     start(async () => {
-      const result = await deleteAction(tx.id)
-      if (!result.ok) {
-        setError(result.error)
-        return
+      // Matches pick(): without the catch a thrown action (a dropped
+      // connection, say) rejects inside the transition and the button appears
+      // to do nothing at all.
+      try {
+        const result = await deleteAction(tx.id)
+        if (!result.ok) {
+          setError(result.error)
+          return
+        }
+        onOpenChange(false)
+      } catch {
+        setError('Could not delete. Try again.')
       }
-      onOpenChange(false)
     })
   }
 
   return (
-    <Drawer.Root open={open} onOpenChange={onOpenChange}>
-      <Drawer.Portal>
-        <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60" />
-        <Drawer.Content className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-neutral-900 pb-[env(safe-area-inset-bottom)]">
-          <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-neutral-700" />
-          <Drawer.Title className="px-5 pt-4 text-sm text-neutral-400">
-            {needsAmount ? 'Enter the amount, then pick a category' : 'Edit amount or pick a category'}
-          </Drawer.Title>
-          <input
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      {/* DrawerContent renders the portal, the overlay and the grab handle, but
+          not the bottom safe-area padding — without it the delete button lands
+          under the iPhone home indicator. */}
+      <DrawerContent className="bg-card pb-[env(safe-area-inset-bottom)]">
+        <DrawerHeader className="shrink-0 gap-1 pb-0 text-left">
+          <DrawerTitle className="text-base">
+            {needsAmount ? 'Enter the amount' : 'Edit transaction'}
+          </DrawerTitle>
+          {/* Both variants name picking a category as the action that saves —
+              with an editable note as well as an amount, it is no longer
+              obvious which control commits the change. */}
+          <DrawerDescription>
+            {needsAmount
+              ? 'Enter the amount, then pick a category to save'
+              : 'Edit the amount or note, then pick a category to save'}
+          </DrawerDescription>
+        </DrawerHeader>
+        <div className="flex shrink-0 flex-col gap-2 px-4 pt-3">
+          <Label htmlFor="sheet-amount" className="sr-only">
+            Amount in toman
+          </Label>
+          <Input
+            id="sheet-amount"
             inputMode="numeric"
             autoFocus={needsAmount}
             value={toman}
             onChange={(e) => setToman(e.target.value)}
             placeholder="Amount in toman"
-            className="mx-4 mt-3 rounded-xl bg-neutral-800 px-4 py-3 text-xl outline-none"
+            className="h-auto rounded-xl bg-secondary px-4 py-3 text-xl md:text-xl"
           />
-          <div className="grid grid-cols-3 gap-3 p-4">
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                disabled={pending}
-                onClick={() => pick(c.id)}
-                className="flex h-24 flex-col items-center justify-center gap-2 rounded-xl bg-neutral-800 active:bg-neutral-700 disabled:opacity-50"
-              >
-                <span className="text-2xl">{c.icon}</span>
-                <span className="text-xs text-neutral-300">{c.name}</span>
-              </button>
-            ))}
-          </div>
-          {error && <p className="px-5 pb-2 text-sm text-red-400">{error}</p>}
-          <button
+          <Label htmlFor="sheet-note" className="sr-only">
+            Note
+          </Label>
+          <Input
+            id="sheet-note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Note (optional)"
+            maxLength={MAX_NOTE_LENGTH}
+            className="h-auto rounded-xl bg-secondary px-4 py-3 md:text-base"
+          />
+        </div>
+        {/* The only scrolling region: the drawer is capped at 80vh and the
+            category grid is taller than that, so it scrolls while the amount
+            field and the delete button stay put. `min-h-0` is required for a
+            flex child to be allowed to shrink below its content height. */}
+        <div className="grid min-h-0 flex-1 grid-cols-3 gap-3 overflow-y-auto overscroll-contain p-4">
+          {categories.map((c) => (
+            <Button
+              key={c.id}
+              variant="secondary"
+              disabled={pending}
+              onClick={() => pick(c.id)}
+              // `whitespace-normal` because the primitive sets nowrap, which
+              // would clip the longer category names.
+              className="h-24 flex-col gap-2 whitespace-normal rounded-xl"
+            >
+              <span className="text-2xl" aria-hidden>
+                {c.icon}
+              </span>
+              <span className="text-xs text-muted-foreground">{c.name}</span>
+            </Button>
+          ))}
+        </div>
+        {error && (
+          <Alert variant="destructive" className="mx-4 mb-2 w-auto shrink-0">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <DrawerFooter className="shrink-0 pt-0">
+          <Button
+            variant="ghost"
             onClick={remove}
             disabled={pending}
-            className="w-full py-4 text-sm text-red-400 disabled:opacity-50"
+            className="h-auto w-full py-4 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             Delete transaction
-          </button>
-        </Drawer.Content>
-      </Drawer.Portal>
-    </Drawer.Root>
+          </Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   )
 }

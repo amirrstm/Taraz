@@ -1,6 +1,8 @@
+import { ChevronLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CategoryTransactionList } from './CategoryTransactionList'
+import { Button } from '@/components/ui/button'
 import { getCategoryById, listByCategory, listCategories } from '@/lib/db/queries'
 import { formatToman } from '@/lib/money'
 import { currentYearMonth, monthRange } from '@/lib/month'
@@ -46,13 +48,16 @@ export default async function CategoryMonthPage({
   return (
     <main className="px-4 pt-6">
       <header className="mb-4 flex items-center gap-3 px-1">
-        <Link href={`/month?y=${year}&m=${month}`} className="px-1 py-2 text-neutral-400">
-          ‹ Back
-        </Link>
+        <Button asChild variant="ghost" size="sm" className="-ml-2 text-muted-foreground">
+          <Link href={`/month?y=${year}&m=${month}`}>
+            <ChevronLeft className="size-4" />
+            Back
+          </Link>
+        </Button>
       </header>
 
-      <p className="px-1 text-sm text-neutral-500">
-        {category.icon} {category.name} — {label}
+      <p className="px-1 text-sm text-muted-foreground">
+        <span aria-hidden>{category.icon}</span> {category.name} — {label}
       </p>
       <p className="mb-4 px-1 text-3xl font-semibold">{formatToman(total)} T</p>
 
@@ -63,6 +68,7 @@ export default async function CategoryMonthPage({
           direction: t.direction,
           status: t.status,
           description: t.description,
+          note: t.note,
           occurredAt: t.occurredAt,
         }))}
         categories={categories}
