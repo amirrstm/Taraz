@@ -1,1 +1,99 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* Dark-only app: there is no light theme and no `.dark` class on <html>.
+   shadcn components ship hard-coded `dark:` utilities (`dark:bg-input/30` and
+   friends), and Tailwind v4's built-in `dark:` means
+   `prefers-color-scheme: dark` — so those styles would silently switch off for
+   anyone whose phone is in light mode while our tokens stayed dark. Redefining
+   the variant as unconditionally true keeps them on. `:where()` keeps
+   specificity at zero, so ordering decides, exactly as with a `.dark` class. */
+@custom-variant dark (&:where(*));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+/* Values are Tailwind's own neutral/red oklch scale, so this is pixel-identical
+   to the hand-rolled `bg-neutral-*` classes it replaces.
+
+   `--radius` is deliberately NOT mapped onto `--radius-*` in `@theme inline`:
+   doing so would override Tailwind's whole radius scale and silently resize the
+   `rounded-xl` used on every card and tile in the app. */
+:root {
+  --radius: 0.75rem;
+
+  /* Clearance for the fixed TabBar plus the home indicator. Used by the app
+     shell's bottom padding and by the Sonner toast offset, which must sit
+     above the bar rather than behind it. */
+  --tabbar-clearance: calc(6rem + env(safe-area-inset-bottom));
+
+  --background: oklch(0.145 0 0); /* neutral-950 */
+  --foreground: oklch(0.97 0 0); /* neutral-100 */
+
+  --card: oklch(0.205 0 0); /* neutral-900 */
+  --card-foreground: oklch(0.97 0 0);
+
+  --popover: oklch(0.205 0 0); /* neutral-900 */
+  --popover-foreground: oklch(0.97 0 0);
+
+  --primary: oklch(0.97 0 0); /* neutral-100 */
+  --primary-foreground: oklch(0.205 0 0); /* neutral-900 */
+
+  --secondary: oklch(0.269 0 0); /* neutral-800 */
+  --secondary-foreground: oklch(0.97 0 0);
+
+  --muted: oklch(0.269 0 0); /* neutral-800 */
+  --muted-foreground: oklch(0.708 0 0); /* neutral-400 */
+
+  --accent: oklch(0.269 0 0); /* neutral-800 */
+  --accent-foreground: oklch(0.97 0 0);
+
+  --destructive: oklch(0.704 0.191 22.216); /* red-400 */
+  --destructive-foreground: oklch(0.97 0 0);
+
+  --border: oklch(0.269 0 0); /* neutral-800 */
+  --input: oklch(0.269 0 0); /* neutral-800 */
+  --ring: oklch(0.439 0 0); /* neutral-600 */
+
+  /* Monochrome ramp: the daily bar strip is neutral-400 on neutral-800 today
+     and should stay that way. */
+  --chart-1: oklch(0.708 0 0); /* neutral-400 */
+  --chart-2: oklch(0.556 0 0); /* neutral-500 */
+  --chart-3: oklch(0.439 0 0); /* neutral-600 */
+  --chart-4: oklch(0.371 0 0); /* neutral-700 */
+  --chart-5: oklch(0.269 0 0); /* neutral-800 */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
