@@ -1,4 +1,5 @@
 import { parse } from '@/lib/sms/parse'
+import { isNonTransaction } from '@/lib/sms/non-transaction'
 import {
   hashBody,
   insertNeedsReview,
@@ -7,7 +8,7 @@ import {
   logSms,
 } from '@/lib/db/queries'
 
-export type IngestResult = 'parsed' | 'needs_review' | 'duplicate'
+export type IngestResult = 'parsed' | 'needs_review' | 'duplicate' | 'ignored'
 
 /**
  * The single path from raw SMS text to stored transaction, shared by the
@@ -29,6 +30,22 @@ export async function ingestSms(
       error: 'duplicate',
     })
     return 'duplicate'
+  }
+
+  // Known non-transaction traffic (one-time passwords, login alerts) is logged
+  // but never becomes a row — not even a needs_review one. It is checked before
+  // parsing because some of these carry an amount and would otherwise be
+  // mistaken for the very purchase they authorize.
+  if (isNonTransaction(text)) {
+    await logSms({
+      rawText: text,
+      bodyHash,
+      sender,
+      receivedAt: now,
+      parseOk: false,
+      error: 'ignored',
+    })
+    return 'ignored'
   }
 
   const parsed = parse(text)

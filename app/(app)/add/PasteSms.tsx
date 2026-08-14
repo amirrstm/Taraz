@@ -2,16 +2,22 @@
 
 import { useState, useTransition } from 'react'
 import { pasteSmsAction } from '@/app/(app)/actions'
+import type { IngestResult } from '@/lib/ingest'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
-const MESSAGES = {
+const MESSAGES: Record<IngestResult, string> = {
   parsed: 'Saved. Check the Inbox to categorize it.',
   needs_review: "Couldn't read the amount — added to the Inbox for review.",
   duplicate: 'Already recorded.',
-} as const
+  ignored: 'Not a transaction message — nothing to record.',
+}
 
 export function PasteSms() {
   const [text, setText] = useState('')
-  const [result, setResult] = useState<keyof typeof MESSAGES | null>(null)
+  const [result, setResult] = useState<IngestResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -30,23 +36,46 @@ export function PasteSms() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <textarea
+    // The form only exists so the Import button submits; Enter inside the
+    // textarea must still insert a newline, since bank messages are multi-line.
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        submit()
+      }}
+      className="flex flex-col gap-3"
+    >
+      <Label htmlFor="sms" className="sr-only">
+        Bank message text
+      </Label>
+      <Textarea
+        id="sms"
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={5}
         placeholder="Paste the bank message here"
-        className="rounded-xl bg-neutral-900 px-4 py-3 outline-none ring-1 ring-neutral-800 focus:ring-neutral-600"
+        // Bank SMS is Persian; without this it renders LTR-jumbled while typing.
+        dir="auto"
+        className="rounded-xl bg-card px-4 py-3 md:text-base"
       />
-      {result && <p className="text-sm text-neutral-400">{MESSAGES[result]}</p>}
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      <button
-        onClick={submit}
+      {result && (
+        <Alert>
+          <AlertDescription>{MESSAGES[result]}</AlertDescription>
+        </Alert>
+      )}
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      <Button
+        type="submit"
+        variant="secondary"
         disabled={pending || !text.trim()}
-        className="rounded-xl bg-neutral-800 py-3 font-medium disabled:opacity-50"
+        className="h-auto rounded-xl py-3 font-medium"
       >
         Import
-      </button>
-    </div>
+      </Button>
+    </form>
   )
 }

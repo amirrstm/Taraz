@@ -15,7 +15,10 @@ const GENERIC: BankTemplate = {
       { re: /برداشت|خرید|پرداخت|کسر/, value: 'debit' },
       { re: /واریز|دریافت|افزایش/, value: 'credit' },
     ],
-    amount: /مبلغ\s+(\d+)/,
+    // Deliberately requires a direction word immediately before the amount.
+    // Matching a bare `مبلغ <n>` invented transactions out of purchase-password
+    // messages, which repeat the amount of the real purchase they authorize.
+    amount: /(?:برداشت|واریز|خرید|پرداخت|کسر)\s+مبلغ\s+(\d+)/,
     account: /از\s+([\d-]{6,})/,
     balance: /مانده\s+(\d+)/,
     date: /(\d{4})\/(\d{1,2})\/(\d{1,2})/,

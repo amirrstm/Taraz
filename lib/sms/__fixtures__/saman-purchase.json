@@ -1,0 +1,9 @@
+{
+  "bankId": "saman",
+  "amount": 473000,
+  "direction": "debit",
+  "accountTail": "1",
+  "balanceAfter": 653007251,
+  "occurredAt": 1786269639000,
+  "description": "خریدکالا"
+}

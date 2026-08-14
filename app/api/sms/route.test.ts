@@ -85,9 +85,17 @@ test('a duplicate still logs exactly one sms_log row and no transaction', async 
 })
 
 test('stores an unparseable message as needs_review with 200', async () => {
-  const res = await POST(post({ text: 'کد ورود شما 12345 است' }))
+  const res = await POST(post({ text: 'بانك سامان برداشت از حساب انجام شد' }))
   expect(res.status).toBe(200)
   expect(await res.json()).toEqual({ ok: true, status: 'needs_review' })
+})
+
+test('drops a non-transaction message with 200 and creates no transaction', async () => {
+  const txBefore = await count('transactions')
+  const res = await POST(post({ text: 'کد ورود شما 12345 است' }))
+  expect(res.status).toBe(200)
+  expect(await res.json()).toEqual({ ok: true, status: 'ignored' })
+  expect(await count('transactions')).toBe(txBefore)
 })
 
 test('returns 400 for a body with no text field', async () => {

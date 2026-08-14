@@ -1,0 +1,9 @@
+{
+  "bankId": "saman",
+  "amount": 5800000,
+  "direction": "debit",
+  "accountTail": "1",
+  "balanceAfter": 647207251,
+  "occurredAt": 1786272053000,
+  "description": "انتقال وجه"
+}
